@@ -1,0 +1,6 @@
+name,email,age
+Slava Polivoda,slava.polivoda@gmail.com,28
+Robota Uaa,robota.ua@gmail.com,34
+Invalid Email,invalid-email,25
+Try Work,missing.age@gmail.com,
+Try Work,neg.age.gmail.com,-5

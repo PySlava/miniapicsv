@@ -1,0 +1,78 @@
+services:
+  db:
+    image: postgres:17.4-alpine
+    container_name: miniapi-db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    restart: always
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: miniapi-redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: miniapi-web
+    command: >
+      sh -c "python manage.py check &&
+             /usr/local/bin/wait-for-it db:5432 --timeout=30 --strict -- sleep 5 && 
+             python manage.py migrate --noinput && 
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/code
+      - media_data:/code/media
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    restart: always
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: miniapi-celery
+    command: celery -A baseapi worker -l info --concurrency=2
+    volumes:
+      - .:/code
+      - media_data:/code/media
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+      - web
+    restart: always
+
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: miniapi-flower
+    command: celery -A baseapi flower --address=0.0.0.0 --port=5555
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - celery
+    restart: always
+
+volumes:
+  postgres_data:
+  media_data:
